@@ -36,7 +36,8 @@ export interface AccessRequest {
 }
 
 export interface CreateRequestPayload {
-  asset_id: string;
+  asset_ids: string[];
+  asset_names: string[];
   account_ids: string[];
   reason: string;
   duration_minutes: number;
@@ -171,12 +172,14 @@ export const requesterApi = {
     apiFetch<Account[]>(`/request/api/jumpserver/accounts/${assetId}`),
 
   createRequest: async (payload: CreateRequestPayload) => {
-    const assets = await requesterApi.searchAssets('');
-    const asset = assets.find((entry) => entry.id === payload.asset_id);
-    if (!asset) {
-      throw new ApiError(400, 'Selected asset not found');
+    if (!payload.asset_ids.length || !payload.asset_names.length) {
+      throw new ApiError(400, 'Select at least one asset');
     }
-    const accounts = await requesterApi.getAccounts(payload.asset_id);
+    const uniqueAssetIds = Array.from(new Set(payload.asset_ids));
+    const accountGroups = await Promise.all(
+      uniqueAssetIds.map((assetId) => requesterApi.getAccounts(assetId).catch(() => [] as Account[]))
+    );
+    const accounts = accountGroups.flat();
     const selectedAccounts = payload.use_all_accounts
       ? ["@ALL"]
       : accounts
@@ -197,7 +200,7 @@ export const requesterApi = {
         requester: me.username,
         requester_email: '',
         jumpserver_user: me.username,
-        asset_hostname: asset.name,
+        asset_hostname: payload.asset_names.join(','),
         accounts: accountTokens.join(','),
         reason: payload.reason,
         duration_minutes: payload.duration_minutes,

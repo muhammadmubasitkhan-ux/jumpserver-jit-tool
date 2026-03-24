@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle2, Search } from 'lucide-react';
+import { Loader2, CheckCircle2, Search, X } from 'lucide-react';
 
 export default function RequestAccess() {
   const { toast } = useToast();
@@ -16,7 +16,8 @@ export default function RequestAccess() {
   const [assetSearch, setAssetSearch] = useState('');
   const [assets, setAssets] = useState<Asset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
-  const [selectedAssetId, setSelectedAssetId] = useState('');
+  const [assetToAdd, setAssetToAdd] = useState('');
+  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
 
   // Accounts
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -49,17 +50,44 @@ export default function RequestAccess() {
     return () => clearTimeout(t);
   }, [assetSearch, searchAssets]);
 
-  // Load accounts when asset selected
+  // Load accounts when one or more assets selected
   useEffect(() => {
-    if (!selectedAssetId) { setAccounts([]); return; }
+    if (selectedAssets.length === 0) { setAccounts([]); return; }
     setAccountsLoading(true);
     setSelectedAccountIds([]);
     setUseAllAccounts(false);
-    requesterApi.getAccounts(selectedAssetId)
-      .then(setAccounts)
+    const uniqueAccounts = new Map<string, Account>();
+    Promise.all(
+      selectedAssets.map((asset) =>
+        requesterApi.getAccounts(asset.id).catch(() => [] as Account[])
+      )
+    )
+      .then((groups) => {
+        for (const group of groups) {
+          for (const account of group) {
+            const key = account.id || `${account.username}:${account.name}`;
+            if (!uniqueAccounts.has(key)) uniqueAccounts.set(key, account);
+          }
+        }
+        setAccounts(Array.from(uniqueAccounts.values()));
+      })
       .catch(() => setAccounts([]))
       .finally(() => setAccountsLoading(false));
-  }, [selectedAssetId]);
+  }, [selectedAssets]);
+
+  const addSelectedAsset = (assetId: string) => {
+    const asset = assets.find((entry) => entry.id === assetId);
+    if (!asset) return;
+    setSelectedAssets((prev) => {
+      if (prev.some((entry) => entry.id === asset.id)) return prev;
+      return [...prev, asset];
+    });
+    setAssetToAdd('');
+  };
+
+  const removeSelectedAsset = (assetId: string) => {
+    setSelectedAssets((prev) => prev.filter((entry) => entry.id !== assetId));
+  };
 
   const toggleAccount = (id: string) => {
     setSelectedAccountIds((prev) =>
@@ -69,7 +97,7 @@ export default function RequestAccess() {
 
   const virtualCount = Number(virtualInput) + Number(virtualUser) + Number(virtualAnon);
   const hasAccountSelection = useAllAccounts || selectedAccountIds.length > 0 || virtualCount > 0;
-  const canSubmit = selectedAssetId && hasAccountSelection && reason.length >= 10 && duration >= 15 && duration <= 480;
+  const canSubmit = selectedAssets.length > 0 && hasAccountSelection && reason.length >= 10 && duration >= 15 && duration <= 480;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,7 +105,8 @@ export default function RequestAccess() {
     setSubmitting(true);
     try {
       const result = await requesterApi.createRequest({
-        asset_id: selectedAssetId,
+        asset_ids: selectedAssets.map((asset) => asset.id),
+        asset_names: selectedAssets.map((asset) => asset.name),
         account_ids: selectedAccountIds,
         reason,
         duration_minutes: duration,
@@ -109,7 +138,7 @@ export default function RequestAccess() {
           <h3 className="text-lg font-semibold text-foreground mb-1">Request Submitted</h3>
           <p className="text-sm text-muted-foreground mb-4">Your request has been created and is pending approval.</p>
           <code className="bg-muted px-3 py-1.5 rounded text-sm font-mono text-foreground mb-6">{createdId}</code>
-          <Button variant="outline" onClick={() => { setCreatedId(null); setSelectedAssetId(''); setReason(''); setDuration(120); setSelectedAccountIds([]); setUseAllAccounts(false); setVirtualInput(false); setVirtualUser(false); setVirtualAnon(false); }}>
+          <Button variant="outline" onClick={() => { setCreatedId(null); setSelectedAssets([]); setReason(''); setDuration(120); setSelectedAccountIds([]); setUseAllAccounts(false); setVirtualInput(false); setVirtualUser(false); setVirtualAnon(false); }}>
             Submit Another Request
           </Button>
         </CardContent>
@@ -142,25 +171,52 @@ export default function RequestAccess() {
               />
             </div>
             {assetsLoading && <p className="text-sm text-muted-foreground">Searching...</p>}
+            {selectedAssets.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {selectedAssets.map((asset) => (
+                  <span key={asset.id} className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs text-foreground">
+                    {asset.name}
+                    <button
+                      type="button"
+                      className="rounded-full p-0.5 hover:bg-primary/20"
+                      onClick={() => removeSelectedAsset(asset.id)}
+                      aria-label={`Remove ${asset.name}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
             {assets.length > 0 && (
-              <Select value={selectedAssetId} onValueChange={setSelectedAssetId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select an asset" />
-                </SelectTrigger>
-                <SelectContent>
-                  {assets.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.name} ({a.address})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={assetToAdd} onValueChange={setAssetToAdd}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select asset to add" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assets
+                      .filter((asset) => !selectedAssets.some((selected) => selected.id === asset.id))
+                      .map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name} ({a.address})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="outline" disabled={!assetToAdd} onClick={() => addSelectedAsset(assetToAdd)}>
+                  Add
+                </Button>
+              </div>
+            )}
+            {assets.length === 0 && assetSearch.length >= 2 && !assetsLoading && (
+              <p className="text-sm text-muted-foreground">No matching assets found.</p>
             )}
           </CardContent>
         </Card>
 
         {/* Accounts */}
-        {selectedAssetId && (
+        {selectedAssets.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Accounts</CardTitle>
