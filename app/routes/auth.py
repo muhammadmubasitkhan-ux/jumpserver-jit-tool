@@ -24,7 +24,7 @@ async def login_page(request: Request):
         return RedirectResponse(url="/dashboard", status_code=303)
     if get_current_requester(request):
         return RedirectResponse(url="/request", status_code=303)
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request, "login.html", {"request": request})
 
 
 @router.post("/login", response_class=HTMLResponse)
@@ -38,6 +38,7 @@ async def login_submit(
         user_info = client.authenticate_user(username, password)
         if not user_info:
             return templates.TemplateResponse(
+                request,
                 "login.html",
                 {"request": request, "error": "Invalid JumpServer credentials"},
             )

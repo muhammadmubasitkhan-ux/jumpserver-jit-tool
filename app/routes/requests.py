@@ -23,6 +23,7 @@ async def request_form(request: Request):
     try:
         assets = await client.list_assets()
         return templates.TemplateResponse(
+            request,
             "request_access.html",
             {"request": request, "js_assets": assets, "requester_info": requester},
         )
@@ -54,6 +55,7 @@ async def submit_request(
         notify_new_request(access_req)
         assets = await client.list_assets()
         return templates.TemplateResponse(
+            request,
             "request_access.html",
             {
                 "request": request,
@@ -66,6 +68,7 @@ async def submit_request(
     except ValueError as e:
         assets = await client.list_assets()
         return templates.TemplateResponse(
+            request,
             "request_access.html",
             {"request": request, "error": str(e), "js_assets": assets, "requester_info": requester},
         )
@@ -79,6 +82,7 @@ async def my_requests(request: Request):
     all_reqs = db.list_requests()
     user_reqs = [r for r in all_reqs if r["jumpserver_user"] == requester["username"]]
     return templates.TemplateResponse(
+        request,
         "my_requests.html",
         {"request": request, "requests": user_reqs, "requester_info": requester},
     )

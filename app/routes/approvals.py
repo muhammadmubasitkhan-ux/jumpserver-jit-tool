@@ -21,6 +21,7 @@ async def approvals_page(request: Request):
     pending = db.list_requests(status="pending")
     active = db.get_active_grants()
     return templates.TemplateResponse(
+        request,
         "approvals.html",
         {"request": request, "pending": pending, "active": active, "admin_user": admin_user},
     )
@@ -39,6 +40,7 @@ async def approve(request: Request, request_id: str, comment: str = Form("")):
         pending = db.list_requests(status="pending")
         active = db.get_active_grants()
         return templates.TemplateResponse(
+            request,
             "approvals.html",
             {"request": request, "pending": pending, "active": active, "error": str(e), "admin_user": admin_user},
         )
@@ -59,6 +61,7 @@ async def deny(request: Request, request_id: str, comment: str = Form("")):
         pending = db.list_requests(status="pending")
         active = db.get_active_grants()
         return templates.TemplateResponse(
+            request,
             "approvals.html",
             {"request": request, "pending": pending, "active": active, "error": str(e), "admin_user": admin_user},
         )

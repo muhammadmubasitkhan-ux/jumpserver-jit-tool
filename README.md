@@ -71,6 +71,33 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 Open http://localhost:8000/auth/login to sign in.
 
+## Docker
+
+### Run with Docker Compose
+
+```bash
+copy .env.example .env
+docker compose up --build -d
+```
+
+App URL: http://localhost:8000/auth/login
+
+Notes:
+- SQLite data persists in Docker volume `jit_data`
+- Container forces `JIT_DATABASE_URL=sqlite:///./data/jit_access.db`
+
+### Stop
+
+```bash
+docker compose down
+```
+
+### Rebuild after code changes
+
+```bash
+docker compose up --build -d
+```
+
 ## Pages
 
 | URL                  | Description                         |
@@ -151,6 +178,9 @@ jumpserver-jit-tool/
 │   └── static/
 │       └── style.css
 ├── .env.example
+├── .dockerignore
+├── Dockerfile
+├── docker-compose.yml
 ├── requirements.txt
 └── README.md
 ```

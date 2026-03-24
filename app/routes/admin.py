@@ -24,6 +24,7 @@ async def dashboard(request: Request):
         active = db.get_active_grants()
         healthy = await client.health_check()
         return templates.TemplateResponse(
+            request,
             "dashboard.html",
             {
                 "request": request,

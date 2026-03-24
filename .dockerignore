@@ -1,0 +1,18 @@
+.git
+.gitignore
+.cursor
+.cursorignore
+venv
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite
+*.sqlite3
+*.log
+.env
+.env.*
+!.env.example
+Jumpserver pricvate key
