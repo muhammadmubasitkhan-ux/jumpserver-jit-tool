@@ -161,6 +161,18 @@ def revoke_request(request_id: str) -> Optional[dict]:
     return get_request(request_id)
 
 
+def cancel_request(request_id: str, jumpserver_user: str) -> Optional[dict]:
+    now = _now()
+    with get_db() as db:
+        db.execute(
+            """UPDATE access_requests
+               SET status = 'cancelled', updated_at = ?
+               WHERE id = ? AND jumpserver_user = ? AND status = 'pending'""",
+            (now, request_id, jumpserver_user),
+        )
+    return get_request(request_id)
+
+
 def get_active_grants() -> list[dict]:
     """Get all approved requests where access hasn't expired yet."""
     now = _now()

@@ -8,7 +8,7 @@ from app.models import AccessRequestCreate
 from app.services.jit_service import JITService
 from app.services.notification import notify_new_request
 from app.dependencies import create_jumpserver_client
-from app.auth import require_requester
+from app.auth import require_requester, get_current_admin, get_current_requester
 from app import database as db
 from app.config import get_settings
 
@@ -170,13 +170,60 @@ async def api_submit_request(body: AccessRequestCreate):
 
 
 @router.get("/api/requests")
-async def api_list_requests(status: str = None, limit: int = 50):
-    return db.list_requests(status=status, limit=limit)
+async def api_list_requests(request: Request, status: str = None, limit: int = 50):
+    admin_user = get_current_admin(request)
+    if admin_user:
+        return db.list_requests(status=status, limit=limit)
+
+    requester = require_requester(request)
+    all_requests = db.list_requests(status=status, limit=limit)
+    return [r for r in all_requests if r.get("jumpserver_user") == requester.get("username")]
 
 
 @router.get("/api/requests/{request_id}")
-async def api_get_request(request_id: str):
+async def api_get_request(request: Request, request_id: str):
+    admin_user = get_current_admin(request)
+    requester = get_current_requester(request)
+    if not admin_user and not requester:
+        require_requester(request)
     req = db.get_request(request_id)
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
+    if not admin_user and req.get("jumpserver_user") != requester.get("username"):
+        raise HTTPException(status_code=403, detail="You can view only your own requests")
     return req
+
+
+@router.post("/api/requests/{request_id}/cancel")
+async def api_cancel_request(request: Request, request_id: str):
+    requester = require_requester(request)
+    req = db.get_request(request_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if req.get("jumpserver_user") != requester.get("username"):
+        raise HTTPException(status_code=403, detail="You can cancel only your own requests")
+    if req.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="Only pending requests can be cancelled")
+    updated = db.cancel_request(request_id, requester["username"])
+    return updated
+
+
+@router.post("/api/requests/{request_id}/revoke")
+async def api_revoke_own_request(request: Request, request_id: str):
+    requester = require_requester(request)
+    req = db.get_request(request_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if req.get("jumpserver_user") != requester.get("username"):
+        raise HTTPException(status_code=403, detail="You can revoke only your own requests")
+    if req.get("status") != "approved":
+        raise HTTPException(status_code=400, detail="Only approved requests can be revoked")
+
+    client = create_jumpserver_client()
+    service = JITService(client)
+    try:
+        return await service.revoke_access(request_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await client.close()

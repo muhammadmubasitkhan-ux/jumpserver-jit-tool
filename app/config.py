@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     notification_from_email: str = ""
+    approver_emails: str = ""
 
     # Portal session signing
     secret_key: str = "change-this-to-a-random-secret-key"

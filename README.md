@@ -53,6 +53,11 @@ copy .env.example .env
 # Edit .env with your JumpServer URL and API token
 ```
 
+For email notifications, set:
+- `JIT_SMTP_HOST`, `JIT_SMTP_PORT`, `JIT_SMTP_USER`, `JIT_SMTP_PASSWORD`
+- `JIT_NOTIFICATION_FROM_EMAIL` (must be verified in your SMTP provider if required)
+- `JIT_APPROVER_EMAILS` (comma-separated recipients for new-request notifications)
+
 To get a JumpServer Private Token:
 ```bash
 docker exec -it jms_core /bin/bash

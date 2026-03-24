@@ -35,13 +35,14 @@ export interface Account {
 export interface AccessRequest {
   id: string;
   requester?: string;
+  jumpserver_user?: string;
   asset_id: string;
   asset_name: string;
   account_ids: string[];
   account_names: string[];
   reason: string;
   duration_minutes: number;
-  status: 'pending' | 'approved' | 'denied' | 'revoked' | 'expired';
+  status: 'pending' | 'approved' | 'denied' | 'revoked' | 'expired' | 'cancelled';
   created_at: string;
   updated_at?: string;
   reviewer?: string;
@@ -146,6 +147,7 @@ function mapRequest(raw: Record<string, unknown>): AccessRequest {
   return {
     id: String(raw.id ?? ''),
     requester: String(raw.requester ?? ''),
+    jumpserver_user: String(raw.jumpserver_user ?? ''),
     asset_id: String(raw.asset_id ?? raw.asset_hostname ?? ''),
     asset_name: String(raw.asset_name ?? raw.asset_hostname ?? ''),
     account_ids: accounts,
@@ -227,12 +229,32 @@ export const requesterApi = {
   },
 
   getMyRequests: async () => {
+    const me = await authApi.getMe();
+    if (!me.is_authenticated) {
+      throw new ApiError(401, 'Unauthorized');
+    }
     const data = await apiFetch<Record<string, unknown>[]>('/request/api/requests');
-    return data.map(mapRequest);
+    return data
+      .map(mapRequest)
+      .filter((requestEntry) => requestEntry.jumpserver_user === me.username);
   },
 
   getRequest: async (id: string) => {
     const data = await apiFetch<Record<string, unknown>>(`/request/api/requests/${id}`);
+    return mapRequest(data);
+  },
+
+  cancelRequest: async (id: string) => {
+    const data = await apiFetch<Record<string, unknown>>(`/request/api/requests/${id}/cancel`, {
+      method: 'POST',
+    });
+    return mapRequest(data);
+  },
+
+  revokeRequest: async (id: string) => {
+    const data = await apiFetch<Record<string, unknown>>(`/request/api/requests/${id}/revoke`, {
+      method: 'POST',
+    });
     return mapRequest(data);
   },
 };

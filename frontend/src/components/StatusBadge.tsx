@@ -7,6 +7,7 @@ const statusStyles: Record<string, string> = {
   denied: 'status-badge-denied',
   revoked: 'status-badge-revoked',
   expired: 'status-badge-expired',
+  cancelled: 'status-badge-revoked',
 };
 
 export function StatusBadge({ status }: { status: string }) {

@@ -31,6 +31,15 @@ def send_email(to: str, subject: str, body_html: str):
         logger.error("Failed to send email to %s: %s", to, e)
 
 
+def _approver_recipients() -> list[str]:
+    settings = get_settings()
+    raw = settings.approver_emails.strip()
+    if not raw:
+        return []
+    recipients = [email.strip() for email in raw.split(",") if email.strip()]
+    return recipients
+
+
 def notify_new_request(request: dict):
     subject = f"[JIT Access] New request from {request['requester']}"
     body = f"""
@@ -45,7 +54,12 @@ def notify_new_request(request: dict):
     </table>
     <p>Please review this request in the JIT Access Portal.</p>
     """
-    send_email("approvers@example.com", subject, body)
+    recipients = _approver_recipients()
+    if not recipients:
+        logger.warning("No approver recipients configured; skipping new request email")
+        return
+    for recipient in recipients:
+        send_email(recipient, subject, body)
 
 
 def notify_request_approved(request: dict):
