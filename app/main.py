@@ -2,10 +2,12 @@
 
 import asyncio
 import logging
+import time
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import database as db
@@ -79,13 +81,42 @@ async def not_authenticated_handler(request: Request, exc: NotAuthenticatedError
 @app.middleware("http")
 async def inject_auth_state(request: Request, call_next):
     from app.auth import get_current_admin, get_current_requester
+    request_id = str(uuid.uuid4())
+    start_time = time.perf_counter()
+    request.state.request_id = request_id
     request.state.admin_user = get_current_admin(request)
     request.state.requester = get_current_requester(request)
-    return await call_next(request)
+    response = await call_next(request)
+    elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+    response.headers["X-Request-ID"] = request_id
+    logger.info(
+        "request_id=%s method=%s path=%s status=%s duration_ms=%s",
+        request_id,
+        request.method,
+        request.url.path,
+        response.status_code,
+        elapsed_ms,
+    )
+    return response
 
 @app.get("/")
 async def root():
     return RedirectResponse(url="/auth/login", status_code=303)
+
+
+@app.get("/healthz")
+async def healthz():
+    return JSONResponse({"status": "ok"})
+
+
+@app.get("/readyz")
+async def readyz():
+    try:
+        db.init_db()
+        return JSONResponse({"status": "ready"})
+    except Exception as exc:
+        logger.error("Readiness check failed: %s", exc)
+        return JSONResponse({"status": "not_ready"}, status_code=503)
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(requests.router, prefix="/request", tags=["requests"])

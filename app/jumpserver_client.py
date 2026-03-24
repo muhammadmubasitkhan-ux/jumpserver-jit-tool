@@ -1,6 +1,7 @@
 """JumpServer REST API client using Private Token authentication."""
 
 import requests as req
+import urllib3
 from datetime import datetime, timezone
 from typing import Optional
 from app.config import get_settings
@@ -12,8 +13,11 @@ class JumpServerClient:
         self.base_url = settings.jumpserver_url.rstrip("/")
         self.org_id = settings.jumpserver_org_id
         self.token = settings.jumpserver_private_token
+        self.verify_ssl = settings.jumpserver_verify_ssl
         self.session = req.Session()
-        self.session.verify = False
+        self.session.verify = self.verify_ssl
+        if not self.verify_ssl:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         self.session.headers.update({
             "Authorization": f"Token {self.token}",
             "Content-Type": "application/json",
@@ -213,7 +217,7 @@ class JumpServerClient:
             resp = req.post(
                 f"{self.base_url}/api/v1/authentication/auth/",
                 json={"username": username, "password": password},
-                verify=False,
+                verify=self.verify_ssl,
                 timeout=15,
             )
             data = resp.json()

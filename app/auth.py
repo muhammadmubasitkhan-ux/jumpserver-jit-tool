@@ -47,12 +47,23 @@ def set_admin_session(response, username: str, name: str = ""):
         "user": username, "name": name, "role": "admin",
         "ts": datetime.now(timezone.utc).isoformat(),
     })
-    response.set_cookie(ADMIN_COOKIE, token, max_age=SESSION_MAX_AGE, httponly=True, samesite="lax")
+    response.set_cookie(
+        ADMIN_COOKIE,
+        token,
+        max_age=SESSION_MAX_AGE,
+        httponly=True,
+        samesite=_settings.session_cookie_samesite,
+        secure=_settings.session_cookie_secure,
+    )
     return response
 
 
 def clear_admin_session(response):
-    response.delete_cookie(ADMIN_COOKIE)
+    response.delete_cookie(
+        ADMIN_COOKIE,
+        samesite=_settings.session_cookie_samesite,
+        secure=_settings.session_cookie_secure,
+    )
     return response
 
 
@@ -93,10 +104,21 @@ def set_requester_session(response, user_info: dict):
         "id": user_info.get("id", ""),
         "ts": datetime.now(timezone.utc).isoformat(),
     })
-    response.set_cookie(REQUESTER_COOKIE, token, max_age=SESSION_MAX_AGE, httponly=True, samesite="lax")
+    response.set_cookie(
+        REQUESTER_COOKIE,
+        token,
+        max_age=SESSION_MAX_AGE,
+        httponly=True,
+        samesite=_settings.session_cookie_samesite,
+        secure=_settings.session_cookie_secure,
+    )
     return response
 
 
 def clear_requester_session(response):
-    response.delete_cookie(REQUESTER_COOKIE)
+    response.delete_cookie(
+        REQUESTER_COOKIE,
+        samesite=_settings.session_cookie_samesite,
+        secure=_settings.session_cookie_secure,
+    )
     return response

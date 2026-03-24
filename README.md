@@ -111,6 +111,20 @@ Important:
 - Do not run `docker compose down -v` if you want to keep existing data.
 - Rebuild/restart is safe: `docker compose up --build -d`
 
+## Operations
+
+- Liveness probe: `GET /api/healthz`
+- Readiness probe: `GET /api/readyz`
+- Every response includes `X-Request-ID` for traceability
+- Admin approvals page includes audit filters and CSV export
+
+### Backup and Restore
+
+```bash
+python scripts/backup_db.py
+python scripts/restore_db.py --backup backups/jit_access-YYYYMMDD-HHMMSS.db
+```
+
 ### Stop
 
 ```bash

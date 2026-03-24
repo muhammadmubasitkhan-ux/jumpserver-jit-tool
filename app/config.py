@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     jumpserver_url: str = "https://jump.plano-wfm.cloud"
     jumpserver_private_token: str = ""
     jumpserver_org_id: str = "00000000-0000-0000-0000-000000000002"
+    jumpserver_verify_ssl: bool = False
 
     database_url: str = "sqlite:///./jit_access.db"
 
@@ -26,6 +27,8 @@ class Settings(BaseSettings):
 
     # Portal session signing
     secret_key: str = "change-this-to-a-random-secret-key"
+    session_cookie_secure: bool = False
+    session_cookie_samesite: str = "lax"
 
     class Config:
         env_file = ".env"

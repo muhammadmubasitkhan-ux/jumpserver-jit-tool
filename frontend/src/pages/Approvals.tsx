@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { adminApi, requesterApi, type AccessRequest, type ActiveGrant, ApiError } from '@/lib/api';
+import { adminApi, type AccessRequest, type ActiveGrant, ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/StatusBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, XCircle, Ban } from 'lucide-react';
 
@@ -21,6 +23,9 @@ export default function Approvals() {
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [comments, setComments] = useState<Record<string, string>>({});
+  const [auditStatusFilter, setAuditStatusFilter] = useState<string>('all');
+  const [auditReviewerFilter, setAuditReviewerFilter] = useState<string>('');
+  const [auditAssetFilter, setAuditAssetFilter] = useState<string>('');
 
   // Revoke modal
   const [revokeTarget, setRevokeTarget] = useState<ActiveGrant | null>(null);
@@ -87,6 +92,35 @@ export default function Approvals() {
   }
 
   if (error) return <ErrorState message={error} onRetry={load} />;
+
+  const filteredAuditHistory = auditHistory.filter((entry) => {
+    if (auditStatusFilter !== 'all' && entry.status !== auditStatusFilter) return false;
+    if (auditReviewerFilter && !(entry.reviewer || '').toLowerCase().includes(auditReviewerFilter.toLowerCase())) return false;
+    if (auditAssetFilter && !(entry.asset_name || '').toLowerCase().includes(auditAssetFilter.toLowerCase())) return false;
+    return true;
+  });
+
+  const exportAuditCsv = () => {
+    const headers = ['id', 'asset', 'status', 'reviewer', 'review_comment', 'created_at', 'updated_at'];
+    const escapeField = (value: string) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const rows = filteredAuditHistory.map((entry) => [
+      entry.id,
+      entry.asset_name,
+      entry.status,
+      entry.reviewer || '',
+      entry.reviewer_comment || '',
+      entry.created_at || '',
+      entry.updated_at || '',
+    ]);
+    const csv = [headers.join(','), ...rows.map((row) => row.map((cell) => escapeField(cell)).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `jit-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-8">
@@ -188,8 +222,35 @@ export default function Approvals() {
 
       {/* Audit History */}
       <section className="space-y-4">
-        <h2 className="text-lg font-medium text-foreground">Audit History ({auditHistory.length})</h2>
-        {auditHistory.length === 0 ? (
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <h2 className="text-lg font-medium text-foreground">Audit History ({filteredAuditHistory.length})</h2>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <Select value={auditStatusFilter} onValueChange={setAuditStatusFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Filter status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="denied">Denied</SelectItem>
+                <SelectItem value="revoked">Revoked</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              placeholder="Filter reviewer"
+              value={auditReviewerFilter}
+              onChange={(event) => setAuditReviewerFilter(event.target.value)}
+            />
+            <Input
+              placeholder="Filter asset"
+              value={auditAssetFilter}
+              onChange={(event) => setAuditAssetFilter(event.target.value)}
+            />
+            <Button variant="outline" onClick={exportAuditCsv}>Export CSV</Button>
+          </div>
+        </div>
+        {filteredAuditHistory.length === 0 ? (
           <EmptyState title="No audit history yet" description="Approved/denied/revoked requests will appear here." />
         ) : (
           <div className="rounded-lg border overflow-auto">
@@ -205,7 +266,7 @@ export default function Approvals() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {auditHistory.map((r) => (
+                {filteredAuditHistory.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-mono text-xs">{r.id.slice(0, 8)}</TableCell>
                     <TableCell className="font-medium">{r.asset_name}</TableCell>

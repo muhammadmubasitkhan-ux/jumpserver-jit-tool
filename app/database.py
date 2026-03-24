@@ -5,8 +5,19 @@ import uuid
 from datetime import datetime, timezone
 from contextlib import contextmanager
 from typing import Optional
+from pathlib import Path
 
-DB_PATH = "jit_access.db"
+from app.config import get_settings
+
+
+def _db_path() -> str:
+    settings = get_settings()
+    db_url = settings.database_url
+    if db_url.startswith("sqlite:///"):
+        raw_path = db_url.replace("sqlite:///", "", 1)
+        Path(raw_path).parent.mkdir(parents=True, exist_ok=True)
+        return raw_path
+    return "jit_access.db"
 
 
 def init_db():
@@ -41,7 +52,7 @@ def init_db():
 
 @contextmanager
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(_db_path())
     conn.row_factory = sqlite3.Row
     try:
         yield conn
