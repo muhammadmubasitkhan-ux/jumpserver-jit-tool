@@ -95,7 +95,37 @@ async def api_jumpserver_assets(search: str = ""):
     client = create_jumpserver_client()
     try:
         assets = await client.list_assets(search=search)
-        return [{"id": a.get("id"), "name": a.get("name"), "address": a.get("address")} for a in assets]
+        return [
+            {
+                "id": a.get("id"),
+                "name": a.get("name"),
+                "address": a.get("address"),
+                "org_name": a.get("org_name") or a.get("org", {}).get("name", ""),
+            }
+            for a in assets
+        ]
+    finally:
+        await client.close()
+
+
+@router.get("/api/jumpserver/nodes")
+async def api_jumpserver_nodes():
+    client = create_jumpserver_client()
+    try:
+        nodes = await client.list_asset_nodes()
+        return [
+            {
+                "id": n.get("id"),
+                "name": n.get("name"),
+                "value": n.get("value"),
+                "key": n.get("key"),
+                "parent": n.get("parent"),
+                "parent_key": n.get("parent_key"),
+                "full_value": n.get("full_value"),
+                "assets_amount": n.get("assets_amount") or n.get("assets_count"),
+            }
+            for n in nodes
+        ]
     finally:
         await client.close()
 

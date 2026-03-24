@@ -11,6 +11,18 @@ export interface Asset {
   address: string;
   platform: string;
   org_name?: string;
+  nodes_display?: string;
+}
+
+export interface AssetNode {
+  id: string;
+  name: string;
+  value?: string;
+  key?: string;
+  parent?: string;
+  parent_key?: string;
+  full_value?: string;
+  assets_amount?: number;
 }
 
 export interface Account {
@@ -22,6 +34,7 @@ export interface Account {
 
 export interface AccessRequest {
   id: string;
+  requester?: string;
   asset_id: string;
   asset_name: string;
   account_ids: string[];
@@ -132,6 +145,7 @@ function mapRequest(raw: Record<string, unknown>): AccessRequest {
     .filter(Boolean);
   return {
     id: String(raw.id ?? ''),
+    requester: String(raw.requester ?? ''),
     asset_id: String(raw.asset_id ?? raw.asset_hostname ?? ''),
     asset_name: String(raw.asset_name ?? raw.asset_hostname ?? ''),
     account_ids: accounts,
@@ -170,6 +184,9 @@ export const requesterApi = {
 
   getAccounts: (assetId: string) =>
     apiFetch<Account[]>(`/request/api/jumpserver/accounts/${assetId}`),
+
+  getNodes: () =>
+    apiFetch<AssetNode[]>(`/request/api/jumpserver/nodes`),
 
   createRequest: async (payload: CreateRequestPayload) => {
     if (!payload.asset_ids.length || !payload.asset_names.length) {

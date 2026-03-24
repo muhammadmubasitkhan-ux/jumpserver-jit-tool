@@ -90,6 +90,23 @@ class JumpServerClient:
         data = resp.json()
         return data.get("results", data) if isinstance(data, dict) else data
 
+    async def list_asset_nodes(self) -> list[dict]:
+        candidates = [
+            "/api/v1/assets/nodes/",
+            "/api/v1/assets/asset-nodes/",
+            "/api/v2/assets/nodes/",
+        ]
+        for path in candidates:
+            try:
+                resp = self._get(path, params={"limit": 1000})
+                data = resp.json()
+                nodes = data.get("results", data) if isinstance(data, dict) else data
+                if isinstance(nodes, list):
+                    return nodes
+            except Exception:
+                continue
+        return []
+
     async def get_asset_accounts(self, asset_id: str) -> list[dict]:
         candidates = [
             ("/api/v1/accounts/accounts/", {"asset": asset_id, "limit": 100}),

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="JIT">
+  <rect width="64" height="64" rx="12" fill="#0f172a"/>
+  <path d="M32 10l16 8v12c0 12-7.6 22.8-16 26-8.4-3.2-16-14-16-26V18l16-8z" fill="#2563eb"/>
+  <path d="M32 16l10 5v9c0 8.4-5 16.2-10 19-5-2.8-10-10.6-10-19v-9l10-5z" fill="#93c5fd"/>
+  <text x="32" y="38" text-anchor="middle" font-size="12" font-family="Arial, sans-serif" font-weight="700" fill="#0f172a">JIT</text>
+</svg>

@@ -101,10 +101,11 @@ export default function Approvals() {
   });
 
   const exportAuditCsv = () => {
-    const headers = ['id', 'asset', 'status', 'reviewer', 'review_comment', 'created_at', 'updated_at'];
+    const headers = ['id', 'requester', 'asset', 'status', 'reviewer', 'review_comment', 'created_at', 'updated_at'];
     const escapeField = (value: string) => `"${String(value ?? '').replace(/"/g, '""')}"`;
     const rows = filteredAuditHistory.map((entry) => [
       entry.id,
+      entry.requester || '',
       entry.asset_name,
       entry.status,
       entry.reviewer || '',
@@ -258,6 +259,7 @@ export default function Approvals() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Request</TableHead>
+                  <TableHead>Requester</TableHead>
                   <TableHead>Asset</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Reviewer</TableHead>
@@ -269,6 +271,7 @@ export default function Approvals() {
                 {filteredAuditHistory.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-mono text-xs">{r.id.slice(0, 8)}</TableCell>
+                    <TableCell className="text-sm">{r.requester || '—'}</TableCell>
                     <TableCell className="font-medium">{r.asset_name}</TableCell>
                     <TableCell><StatusBadge status={r.status} /></TableCell>
                     <TableCell className="text-sm">{r.reviewer || '—'}</TableCell>

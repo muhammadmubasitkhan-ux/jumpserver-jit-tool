@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { requesterApi, type Asset, type Account, ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle2, Search, X } from 'lucide-react';
 
@@ -13,9 +12,10 @@ export default function RequestAccess() {
   const { toast } = useToast();
 
   // Asset search
-  const [assetSearch, setAssetSearch] = useState('');
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [assetCatalog, setAssetCatalog] = useState<Asset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
+  const [assetSearch, setAssetSearch] = useState('');
   const [assetToAdd, setAssetToAdd] = useState('');
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
 
@@ -34,21 +34,24 @@ export default function RequestAccess() {
   const [submitting, setSubmitting] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
 
-  // Search assets with debounce
-  const searchAssets = useCallback(async (q: string) => {
-    if (q.length < 2) { setAssets([]); return; }
+  // Initial asset catalog load
+  const loadCatalog = useCallback(async () => {
     setAssetsLoading(true);
     try {
-      const data = await requesterApi.searchAssets(q);
-      setAssets(data);
-    } catch { /* ignore */ }
-    finally { setAssetsLoading(false); }
+      const allAssets = await requesterApi.searchAssets('');
+      setAssetCatalog(allAssets);
+      setAssets(allAssets);
+    } catch {
+      setAssetCatalog([]);
+      setAssets([]);
+    } finally {
+      setAssetsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => searchAssets(assetSearch), 300);
-    return () => clearTimeout(t);
-  }, [assetSearch, searchAssets]);
+    loadCatalog();
+  }, [loadCatalog]);
 
   // Load accounts when one or more assets selected
   useEffect(() => {
@@ -76,7 +79,7 @@ export default function RequestAccess() {
   }, [selectedAssets]);
 
   const addSelectedAsset = (assetId: string) => {
-    const asset = assets.find((entry) => entry.id === assetId);
+    const asset = assetCatalog.find((entry) => entry.id === assetId) || assets.find((entry) => entry.id === assetId);
     if (!asset) return;
     setSelectedAssets((prev) => {
       if (prev.some((entry) => entry.id === asset.id)) return prev;
@@ -88,6 +91,14 @@ export default function RequestAccess() {
   const removeSelectedAsset = (assetId: string) => {
     setSelectedAssets((prev) => prev.filter((entry) => entry.id !== assetId));
   };
+  const filteredAssetOptions = useMemo(() => {
+    const term = assetSearch.trim().toLowerCase();
+    return assetCatalog.filter((asset) => {
+      if (selectedAssets.some((entry) => entry.id === asset.id)) return false;
+      if (!term) return true;
+      return `${asset.name} ${asset.address}`.toLowerCase().includes(term);
+    });
+  }, [assetCatalog, selectedAssets, assetSearch]);
 
   const toggleAccount = (id: string) => {
     setSelectedAccountIds((prev) =>
@@ -158,19 +169,39 @@ export default function RequestAccess() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Target Asset</CardTitle>
-            <CardDescription>Search for the asset you need access to</CardDescription>
+            <CardDescription>Select one or more assets using searchable dropdown</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search assets by name..."
-                className="pl-9"
-                value={assetSearch}
-                onChange={(e) => setAssetSearch(e.target.value)}
-              />
+            {assetsLoading && <p className="text-sm text-muted-foreground">Loading assets...</p>}
+            <div className="space-y-2">
+              <Label>Assets</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search asset..."
+                  className="pl-9"
+                  value={assetSearch}
+                  onChange={(e) => setAssetSearch(e.target.value)}
+                />
+              </div>
+              <select
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={assetToAdd}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setAssetToAdd(id);
+                  if (id) addSelectedAsset(id);
+                }}
+                onDoubleClick={() => addSelectedAsset(assetToAdd)}
+              >
+                <option value="">Select asset</option>
+                {filteredAssetOptions.map((asset) => (
+                  <option key={asset.id} value={asset.id}>
+                    {asset.name} ({asset.address})
+                  </option>
+                ))}
+              </select>
             </div>
-            {assetsLoading && <p className="text-sm text-muted-foreground">Searching...</p>}
             {selectedAssets.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {selectedAssets.map((asset) => (
@@ -187,30 +218,6 @@ export default function RequestAccess() {
                   </span>
                 ))}
               </div>
-            )}
-            {assets.length > 0 && (
-              <div className="flex gap-2">
-                <Select value={assetToAdd} onValueChange={setAssetToAdd}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select asset to add" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {assets
-                      .filter((asset) => !selectedAssets.some((selected) => selected.id === asset.id))
-                      .map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          {a.name} ({a.address})
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                <Button type="button" variant="outline" disabled={!assetToAdd} onClick={() => addSelectedAsset(assetToAdd)}>
-                  Add
-                </Button>
-              </div>
-            )}
-            {assets.length === 0 && assetSearch.length >= 2 && !assetsLoading && (
-              <p className="text-sm text-muted-foreground">No matching assets found.</p>
             )}
           </CardContent>
         </Card>
