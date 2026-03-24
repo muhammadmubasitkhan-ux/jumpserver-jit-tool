@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% block title %}Request Access — JIT Portal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <h2 class="mb-1"><i class="bi bi-key"></i> Request JIT Access</h2>
+        <p class="text-muted mb-4">Submit a time-limited access request. An approver will review it before access is granted.</p>
+
+        {% if success %}
+        <div class="alert alert-success d-flex align-items-center" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <div>
+                Request submitted successfully! <strong>ID: {{ req_id }}</strong><br>
+                <small>An approver will review your request shortly.</small>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if error %}
+        <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <div>{{ error }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Logged-in identity banner -->
+        <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
+            <i class="bi bi-person-check-fill me-2 fs-5"></i>
+            <div>
+                Requesting as <strong>{{ requester_info.name }}</strong>
+                (<code>{{ requester_info.username }}</code>)
+                {% if requester_info.email %} &mdash; {{ requester_info.email }}{% endif %}
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <form method="post" action="/request" id="requestForm">
+                    <div class="row g-3">
+                        <!-- Duration -->
+                        <div class="col-md-6">
+                            <label for="duration_minutes" class="form-label">Duration</label>
+                            <select class="form-select" id="duration_minutes" name="duration_minutes">
+                                <option value="30">30 min</option>
+                                <option value="60">1 hour</option>
+                                <option value="120" selected>2 hours</option>
+                                <option value="240">4 hours</option>
+                                <option value="480">8 hours</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6"></div>
+
+                        <!-- Target Assets (multi-select) -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Target Assets</label>
+                            <div class="card bg-light">
+                                <div class="card-body py-3">
+                                    <div class="d-flex gap-2 mb-2">
+                                        <input type="text" class="form-control form-control-sm" id="asset_search" placeholder="Type to filter assets..." autocomplete="off">
+                                    </div>
+                                    <div id="asset_tags" class="d-flex flex-wrap gap-1 mb-2"></div>
+                                    <select class="form-select form-select-sm" id="asset_dropdown" size="5">
+                                        {% for a in js_assets %}
+                                        <option value="{{ a.name or a.get('name', '') }}" data-id="{{ a.id or a.get('id', '') }}" data-addr="{{ a.address or a.get('address', '') }}">{{ a.name or a.get('name', '') }} ({{ a.address or a.get('address', '') }})</option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="text-muted">Double-click or press Enter to add. You can select multiple assets.</small>
+                                    <input type="hidden" id="asset_hostname" name="asset_hostname" value="" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Accounts -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Account</label>
+                            <div class="card bg-light">
+                                <div class="card-body py-3">
+                                    <div class="d-flex flex-wrap gap-3 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="account_mode" id="mode_all" value="all" checked>
+                                            <label class="form-check-label" for="mode_all">All accounts</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="account_mode" id="mode_specified" value="specified">
+                                            <label class="form-check-label" for="mode_specified">Specified accounts</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="account_mode" id="mode_exclude" value="exclude">
+                                            <label class="form-check-label" for="mode_exclude">Exclude accounts</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="account_mode" id="mode_none" value="none">
+                                            <label class="form-check-label" for="mode_none">None</label>
+                                        </div>
+                                    </div>
+
+                                    <div id="accounts_picker" class="d-none">
+                                        <div class="d-flex gap-2 mb-2">
+                                            <input type="text" class="form-control form-control-sm" id="account_input" placeholder="Type account name and press Enter">
+                                        </div>
+                                        <div id="account_tags" class="d-flex flex-wrap gap-1 mb-2"></div>
+                                        <select class="form-select form-select-sm" id="accounts_dropdown" size="4" style="display:none">
+                                        </select>
+                                        <small class="text-muted">Accounts are loaded from selected assets. Type to search, press Enter or double-click to add.</small>
+                                    </div>
+
+                                    <div class="form-check mt-3">
+                                        <input class="form-check-input" type="checkbox" id="virtual_accounts_toggle">
+                                        <label class="form-check-label fw-semibold" for="virtual_accounts_toggle">Virtual accounts</label>
+                                    </div>
+                                    <div id="virtual_options" class="d-none ms-4 mt-1">
+                                        <div class="form-check">
+                                            <input class="form-check-input virtual-opt" type="checkbox" id="va_input" value="@INPUT">
+                                            <label class="form-check-label" for="va_input">Manual input <small class="text-muted">— enter credentials at connect</small></label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input virtual-opt" type="checkbox" id="va_user" value="@USER">
+                                            <label class="form-check-label" for="va_user">Same-name account <small class="text-muted">— matches JumpServer username</small></label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input virtual-opt" type="checkbox" id="va_anon" value="@ANON">
+                                            <label class="form-check-label" for="va_anon">Anonymous <small class="text-muted">— no credentials</small></label>
+                                        </div>
+                                    </div>
+
+                                    <input type="hidden" id="accounts" name="accounts" value="@ALL">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reason -->
+                        <div class="col-12">
+                            <label for="reason" class="form-label">Business Justification</label>
+                            <textarea class="form-control" id="reason" name="reason" rows="3" required minlength="10"
+                                      placeholder="Describe why you need this access..."></textarea>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-send"></i> Submit Request
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Asset multi-select ───────────────────────────────
+const assetSearch = document.getElementById('asset_search');
+const assetDropdown = document.getElementById('asset_dropdown');
+const assetTags = document.getElementById('asset_tags');
+const assetHidden = document.getElementById('asset_hostname');
+const allAssetOptions = Array.from(assetDropdown.options);
+
+let selectedAssets = [];
+
+function addAsset(name, id, address) {
+    if (selectedAssets.find(a => a.name === name)) return;
+    selectedAssets.push({name, id, address});
+    renderAssetTags();
+    refreshAssetDropdown();
+    syncAssetHidden();
+    loadAccountsForSelectedAssets();
+}
+
+function removeAsset(name) {
+    selectedAssets = selectedAssets.filter(a => a.name !== name);
+    renderAssetTags();
+    refreshAssetDropdown();
+    syncAssetHidden();
+    loadAccountsForSelectedAssets();
+}
+
+function renderAssetTags() {
+    assetTags.innerHTML = '';
+    selectedAssets.forEach(a => {
+        const tag = document.createElement('span');
+        tag.className = 'badge bg-info text-dark d-flex align-items-center gap-1';
+        tag.innerHTML = a.name + ' <small class="text-muted">(' + a.address + ')</small> <i class="bi bi-x-circle" style="cursor:pointer"></i>';
+        tag.querySelector('i').addEventListener('click', () => removeAsset(a.name));
+        assetTags.appendChild(tag);
+    });
+}
+
+function refreshAssetDropdown() {
+    const term = assetSearch.value.toLowerCase();
+    assetDropdown.innerHTML = '';
+    allAssetOptions.forEach(opt => {
+        const name = opt.value;
+        if (selectedAssets.find(a => a.name === name)) return;
+        if (term && !opt.text.toLowerCase().includes(term)) return;
+        assetDropdown.appendChild(opt.cloneNode(true));
+    });
+}
+
+function syncAssetHidden() {
+    assetHidden.value = selectedAssets.map(a => a.name).join(',');
+}
+
+assetDropdown.addEventListener('dblclick', function() {
+    const opt = this.options[this.selectedIndex];
+    if (opt) addAsset(opt.value, opt.getAttribute('data-id'), opt.getAttribute('data-addr'));
+});
+
+assetSearch.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const opt = assetDropdown.options[0];
+        if (opt) addAsset(opt.value, opt.getAttribute('data-id'), opt.getAttribute('data-addr'));
+    }
+});
+
+assetSearch.addEventListener('input', refreshAssetDropdown);
+
+// ── Account management ───────────────────────────────
+const accountsHidden = document.getElementById('accounts');
+const accountsPicker = document.getElementById('accounts_picker');
+const accountInput = document.getElementById('account_input');
+const accountTags = document.getElementById('account_tags');
+const accountsDropdown = document.getElementById('accounts_dropdown');
+
+let selectedAccounts = [];
+let availableAccounts = [];
+
+document.querySelectorAll('input[name="account_mode"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        selectedAccounts = [];
+        renderAccountTags();
+        if (this.value === 'specified' || this.value === 'exclude') {
+            accountsPicker.classList.remove('d-none');
+            showAccountDropdown();
+        } else {
+            accountsPicker.classList.add('d-none');
+        }
+        syncAccountHidden();
+    });
+});
+
+async function loadAccountsForSelectedAssets() {
+    availableAccounts = [];
+    const seen = new Set();
+    for (const asset of selectedAssets) {
+        try {
+            const resp = await fetch('/request/api/jumpserver/accounts/' + asset.id);
+            if (!resp.ok) continue;
+            const accounts = await resp.json();
+            accounts.forEach(a => {
+                const name = a.username || a.name;
+                if (!seen.has(name)) {
+                    seen.add(name);
+                    availableAccounts.push(a);
+                }
+            });
+        } catch (e) {}
+    }
+    showAccountDropdown();
+}
+
+function showAccountDropdown() {
+    accountsDropdown.innerHTML = '';
+    if (availableAccounts.length === 0) {
+        accountsDropdown.style.display = 'none';
+        return;
+    }
+    accountsDropdown.style.display = '';
+    const term = accountInput.value.toLowerCase();
+    availableAccounts.forEach(a => {
+        const name = a.username || a.name;
+        if (selectedAccounts.includes(name)) return;
+        if (term && !name.toLowerCase().includes(term)) return;
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        accountsDropdown.appendChild(opt);
+    });
+}
+
+accountsDropdown.addEventListener('dblclick', function() {
+    const val = this.value;
+    if (val && !selectedAccounts.includes(val)) {
+        selectedAccounts.push(val);
+        renderAccountTags();
+        showAccountDropdown();
+        syncAccountHidden();
+    }
+});
+
+accountInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = this.value.trim();
+        if (val && !selectedAccounts.includes(val)) {
+            selectedAccounts.push(val);
+            renderAccountTags();
+            showAccountDropdown();
+            syncAccountHidden();
+        }
+        this.value = '';
+    }
+});
+
+accountInput.addEventListener('input', showAccountDropdown);
+
+function renderAccountTags() {
+    accountTags.innerHTML = '';
+    selectedAccounts.forEach(name => {
+        const tag = document.createElement('span');
+        tag.className = 'badge bg-primary d-flex align-items-center gap-1';
+        tag.innerHTML = name + ' <i class="bi bi-x-circle" style="cursor:pointer"></i>';
+        tag.querySelector('i').addEventListener('click', () => {
+            selectedAccounts = selectedAccounts.filter(n => n !== name);
+            renderAccountTags();
+            showAccountDropdown();
+            syncAccountHidden();
+        });
+        accountTags.appendChild(tag);
+    });
+}
+
+function getMode() {
+    return document.querySelector('input[name="account_mode"]:checked').value;
+}
+
+function syncAccountHidden() {
+    const mode = getMode();
+    let parts = [];
+    if (mode === 'all') parts.push('@ALL');
+    else if (mode === 'none') parts.push('@NONE');
+    else if (mode === 'specified') parts = selectedAccounts.length ? [...selectedAccounts] : ['@ALL'];
+    else if (mode === 'exclude') parts = selectedAccounts.length ? ['EXCLUDE:' + selectedAccounts.join(',')] : ['@ALL'];
+
+    document.querySelectorAll('.virtual-opt:checked').forEach(cb => parts.push(cb.value));
+    accountsHidden.value = parts.join(',');
+}
+
+// Virtual accounts
+const virtualToggle = document.getElementById('virtual_accounts_toggle');
+const virtualOptions = document.getElementById('virtual_options');
+virtualToggle.addEventListener('change', function() {
+    virtualOptions.classList.toggle('d-none', !this.checked);
+    if (!this.checked) document.querySelectorAll('.virtual-opt').forEach(cb => cb.checked = false);
+    syncAccountHidden();
+});
+document.querySelectorAll('.virtual-opt').forEach(cb => cb.addEventListener('change', syncAccountHidden));
+</script>
+{% endblock %}

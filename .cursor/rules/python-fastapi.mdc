@@ -1,0 +1,65 @@
+---
+description: Python FastAPI development standards
+globs: **/*.py
+alwaysApply: false
+---
+
+# Python FastAPI Standards
+
+## Core Practices
+- Use Pydantic models for request and response schemas
+- Implement dependency injection for shared resources
+- Use `async def` for route handlers
+- Use path operation decorators (`@router.get`, `@router.post`, etc.)
+- Implement proper error handling with `HTTPException`
+- Use type hints for all function parameters and return values
+- Use FastAPI's background tasks for long-running operations
+
+## Style
+- Follow PEP 8 style guide
+- snake_case for variables and functions, PascalCase for classes
+- 4-space indentation, max line length 120
+- Prefer f-strings over `.format()` or `%`
+- Use descriptive, explicit variable names — no short ambiguous ones
+- Replace hardcoded values with named constants
+
+## Error Handling
+```python
+# BAD
+@router.post("/action")
+async def action():
+    result = do_thing()
+    return result
+
+# GOOD
+@router.post("/action")
+async def action():
+    try:
+        result = await service.do_thing()
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await client.close()
+```
+
+## Project Structure
+```
+app/
+  main.py              # FastAPI entry point + lifespan
+  config.py            # pydantic-settings with .env
+  database.py          # SQLite with context managers
+  dependencies.py      # Shared FastAPI dependencies
+  models.py            # Pydantic request/response models
+  jumpserver_client.py # External API client
+  routes/              # Route handlers only — no business logic
+  services/            # Business logic lives here
+  templates/           # Jinja2 HTML templates
+  static/              # CSS, JS assets
+```
+
+## Security
+- Never hardcode secrets — use environment variables via `.env`
+- Sanitize and validate all inputs with Pydantic
+- Use parameterized queries for SQL — never string interpolation
+- Always `verify=False` only for internal/dev; use proper certs in production

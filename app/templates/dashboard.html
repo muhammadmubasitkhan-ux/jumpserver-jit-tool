@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — JIT Portal{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-speedometer2"></i> Dashboard</h2>
+
+<!-- Status Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card text-center shadow-sm border-primary">
+            <div class="card-body">
+                <div class="display-6 fw-bold text-primary">{{ stats.total_requests }}</div>
+                <div class="text-muted">Total Requests</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center shadow-sm border-warning">
+            <div class="card-body">
+                <div class="display-6 fw-bold text-warning">{{ stats.pending_approvals }}</div>
+                <div class="text-muted">Pending Approval</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center shadow-sm border-success">
+            <div class="card-body">
+                <div class="display-6 fw-bold text-success">{{ stats.active_grants }}</div>
+                <div class="text-muted">Active Grants</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center shadow-sm {% if jumpserver_healthy %}border-success{% else %}border-danger{% endif %}">
+            <div class="card-body">
+                {% if jumpserver_healthy %}
+                <div class="display-6 fw-bold text-success"><i class="bi bi-check-circle"></i></div>
+                <div class="text-muted">JumpServer Connected</div>
+                {% else %}
+                <div class="display-6 fw-bold text-danger"><i class="bi bi-x-circle"></i></div>
+                <div class="text-muted">JumpServer Unreachable</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Breakdown -->
+{% if stats.status_breakdown %}
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header"><h6 class="mb-0">Request Breakdown</h6></div>
+            <div class="card-body">
+                {% for status, count in stats.status_breakdown.items() %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>
+                        {% if status == 'pending' %}<span class="badge bg-warning">{{ status }}</span>
+                        {% elif status == 'approved' %}<span class="badge bg-success">{{ status }}</span>
+                        {% elif status == 'denied' %}<span class="badge bg-danger">{{ status }}</span>
+                        {% elif status == 'revoked' %}<span class="badge bg-secondary">{{ status }}</span>
+                        {% elif status == 'expired' %}<span class="badge bg-dark">{{ status }}</span>
+                        {% else %}<span class="badge bg-info">{{ status }}</span>
+                        {% endif %}
+                    </span>
+                    <strong>{{ count }}</strong>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Maintenance</h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Clean up expired JumpServer permissions that are no longer needed.</p>
+                <form method="post" action="/dashboard/cleanup">
+                    <button type="submit" class="btn btn-outline-warning">
+                        <i class="bi bi-trash"></i> Cleanup Expired Grants
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Active Grants -->
+{% if active %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-success-subtle">
+        <h5 class="mb-0"><i class="bi bi-unlock"></i> Currently Active Grants</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr><th>User</th><th>Asset(s)</th><th>Approved By</th><th>Expires</th></tr>
+                </thead>
+                <tbody>
+                {% for g in active %}
+                <tr>
+                    <td><code>{{ g.jumpserver_user }}</code></td>
+                    <td>
+                        {% for asset in g.asset_hostname.split(',') %}
+                        <span class="badge bg-info text-dark">{{ asset.strip() }}</span>
+                        {% endfor %}
+                    </td>
+                    <td>{{ g.reviewer }}</td>
+                    <td><small>{{ g.access_expiry[:16] }}</small></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent Activity -->
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Activity</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr><th>ID</th><th>Requester</th><th>Asset(s)</th><th>Status</th><th>Created</th></tr>
+                </thead>
+                <tbody>
+                {% for r in recent %}
+                <tr>
+                    <td><small><code>{{ r.id[:8] }}</code></small></td>
+                    <td>{{ r.requester }}</td>
+                    <td>
+                        {% for asset in r.asset_hostname.split(',') %}
+                        <span class="badge bg-info text-dark">{{ asset.strip() }}</span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% if r.status == 'pending' %}<span class="badge bg-warning">pending</span>
+                        {% elif r.status == 'approved' %}<span class="badge bg-success">approved</span>
+                        {% elif r.status == 'denied' %}<span class="badge bg-danger">denied</span>
+                        {% elif r.status == 'revoked' %}<span class="badge bg-secondary">revoked</span>
+                        {% elif r.status == 'expired' %}<span class="badge bg-dark">expired</span>
+                        {% endif %}
+                    </td>
+                    <td><small>{{ r.created_at[:16] }}</small></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

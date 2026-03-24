@@ -1,0 +1,31 @@
+---
+description: Code quality and editing guidelines
+alwaysApply: true
+---
+
+# Code Quality Rules
+
+## Making Changes
+- Verify information before presenting it — do not assume or speculate
+- Make changes file by file
+- Provide all edits in a single chunk per file, not multi-step instructions
+- Don't remove unrelated code or functionalities — preserve existing structures
+- Don't suggest updates when there are no actual modifications needed
+- Don't invent changes other than what's explicitly requested
+
+## Code Standards
+- Use explicit variable names over short ambiguous ones
+- Follow the existing coding style in the project for consistency
+- Prioritize code performance where applicable
+- Security-first approach — always consider security implications
+- Implement robust error handling and logging
+- Encourage modular design for maintainability and reusability
+- Consider and handle edge cases
+- Ensure changes are compatible with Python 3.12+
+
+## Do NOT
+- Add comments that just narrate what code does
+- Use apologies or understanding feedback in comments
+- Suggest whitespace-only changes
+- Summarize changes — just make them
+- Ask for confirmation of information already in context

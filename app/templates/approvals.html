@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Approvals — JIT Portal{% endblock %}
+
+{% block content %}
+<h2 class="mb-1"><i class="bi bi-check-circle"></i> Access Approvals</h2>
+<p class="text-muted mb-4">Review pending requests and manage active grants. Logged in as <strong>{{ admin_user }}</strong>.</p>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<!-- Pending Requests -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-warning-subtle">
+        <h5 class="mb-0"><i class="bi bi-hourglass-split"></i> Pending Requests ({{ pending|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if pending %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Requester</th>
+                        <th>JS User</th>
+                        <th>Asset(s)</th>
+                        <th>Accounts</th>
+                        <th>Duration</th>
+                        <th>Reason</th>
+                        <th>Submitted</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for req in pending %}
+                    <tr>
+                        <td><strong>{{ req.requester }}</strong></td>
+                        <td><code>{{ req.jumpserver_user }}</code></td>
+                        <td>
+                            {% for asset in req.asset_hostname.split(',') %}
+                            <span class="badge bg-info text-dark">{{ asset.strip() }}</span>
+                            {% endfor %}
+                        </td>
+                        <td>{{ req.accounts }}</td>
+                        <td>{{ req.duration_minutes }} min</td>
+                        <td class="text-truncate" style="max-width:200px" title="{{ req.reason }}">{{ req.reason }}</td>
+                        <td><small>{{ req.created_at[:16] }}</small></td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#approveModal{{ loop.index }}">
+                                    <i class="bi bi-check-lg"></i> Approve
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#denyModal{{ loop.index }}">
+                                    <i class="bi bi-x-lg"></i> Deny
+                                </button>
+                            </div>
+
+                            <!-- Approve Modal -->
+                            <div class="modal fade" id="approveModal{{ loop.index }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <form method="post" action="/approvals/approve/{{ req.id }}">
+                                            <div class="modal-header bg-success-subtle">
+                                                <h5 class="modal-title">Approve Request</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p><strong>{{ req.requester }}</strong> requests access to:</p>
+                                                <div class="mb-2">
+                                                    {% for asset in req.asset_hostname.split(',') %}
+                                                    <span class="badge bg-info text-dark">{{ asset.strip() }}</span>
+                                                    {% endfor %}
+                                                </div>
+                                                <p>Duration: <strong>{{ req.duration_minutes }} minutes</strong></p>
+                                                <p><em>"{{ req.reason }}"</em></p>
+                                                <div class="mb-3 p-2 bg-light rounded">
+                                                    <small class="text-muted">Approving as:</small>
+                                                    <strong>{{ admin_user }}</strong>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Comment (optional)</label>
+                                                    <input type="text" class="form-control" name="comment">
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="submit" class="btn btn-success">Approve &amp; Grant Access</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Deny Modal -->
+                            <div class="modal fade" id="denyModal{{ loop.index }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <form method="post" action="/approvals/deny/{{ req.id }}">
+                                            <div class="modal-header bg-danger-subtle">
+                                                <h5 class="modal-title">Deny Request</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="mb-3 p-2 bg-light rounded">
+                                                    <small class="text-muted">Denying as:</small>
+                                                    <strong>{{ admin_user }}</strong>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Reason for Denial</label>
+                                                    <input type="text" class="form-control" name="comment" required>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="submit" class="btn btn-danger">Deny Request</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted p-3 mb-0">No pending requests.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Active Grants -->
+<div class="card shadow-sm">
+    <div class="card-header bg-success-subtle">
+        <h5 class="mb-0"><i class="bi bi-unlock"></i> Active Grants ({{ active|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if active %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>User</th>
+                        <th>Asset(s)</th>
+                        <th>Approved By</th>
+                        <th>Granted At</th>
+                        <th>Expires At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for g in active %}
+                    <tr>
+                        <td><code>{{ g.jumpserver_user }}</code></td>
+                        <td>
+                            {% for asset in g.asset_hostname.split(',') %}
+                            <span class="badge bg-info text-dark">{{ asset.strip() }}</span>
+                            {% endfor %}
+                        </td>
+                        <td>{{ g.reviewer }}</td>
+                        <td><small>{{ g.access_start[:16] }}</small></td>
+                        <td><small>{{ g.access_expiry[:16] }}</small></td>
+                        <td>
+                            <form method="post" action="/approvals/revoke/{{ g.id }}" style="display:inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Revoke access immediately?')">
+                                    <i class="bi bi-slash-circle"></i> Revoke
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted p-3 mb-0">No active grants.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

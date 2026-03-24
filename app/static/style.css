@@ -1,0 +1,48 @@
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.navbar-brand {
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+}
+
+.card {
+    border-radius: 0.5rem;
+}
+
+.card-header {
+    font-weight: 600;
+}
+
+.display-6 {
+    font-size: 2rem;
+}
+
+.table th {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6c757d;
+}
+
+.badge {
+    font-weight: 500;
+    font-size: 0.78rem;
+}
+
+.text-truncate {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+code {
+    font-size: 0.88em;
+    color: #0d6efd;
+    background: #e9ecef;
+    padding: 0.15em 0.35em;
+    border-radius: 0.25em;
+}

@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+requests
+httpsig
+setuptools
+jinja2
+pydantic
+pydantic-settings
+python-multipart
+itsdangerous

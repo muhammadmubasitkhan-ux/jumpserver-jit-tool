@@ -1,0 +1,31 @@
+---
+description: JumpServer API integration conventions
+globs: app/jumpserver_client.py
+alwaysApply: false
+---
+
+# JumpServer API Conventions
+
+## Authentication
+- Uses HMAC-SHA256 request signing (PAM Application keys)
+- KEY_ID and KEY_SECRET from PAM > Application Management
+- Every request must include signed headers: `(request-target)`, `accept`, `date`, `x-jms-org`
+
+## API Endpoints
+- Users: `GET /api/v1/users/users/`
+- Assets: `GET /api/v2/assets/assets/`
+- Permissions: `/api/v1/perms/asset-permissions/` (GET, POST, PATCH, DELETE)
+- Sessions: `GET /api/v2/terminal/sessions/`
+- Account Secret: `GET /api/v1/accounts/integration-applications/account-secret/`
+
+## Response Handling
+- Paginated endpoints return `{"results": [...]}` — always check for this
+- Use `data.get("results", data) if isinstance(data, dict) else data`
+
+## JIT Permission Naming
+- Prefix all JIT permissions with `jit-` for easy identification and cleanup
+- Format: `jit-{username}-{hostname}-{YYYYMMDDHHmmSS}`
+
+## Client Pattern
+- All methods are `async def` but use synchronous `requests` internally
+- Always call `await client.close()` in a `finally` block

@@ -1,0 +1,34 @@
+---
+description: Project-wide conventions for JumpServer JIT Access Portal
+alwaysApply: true
+---
+
+# JumpServer JIT Access Portal Conventions
+
+## Architecture
+- FastAPI web app with Jinja2 templates and Bootstrap 5 UI
+- JIT access = time-limited JumpServer permissions created/deleted via API
+- SQLite tracks requests locally, JumpServer is the source of truth for permissions
+
+## Key Flow
+1. User submits request (web form or JSON API)
+2. Validate user/asset exist in JumpServer
+3. Approver approves → `POST /api/v1/perms/asset-permissions/` with expiry
+4. Background task cleans up expired permissions
+
+## Files
+- `app/main.py` — FastAPI app entry point
+- `app/jumpserver_client.py` — JumpServer REST client (HMAC-SHA256 auth)
+- `app/services/jit_service.py` — Core JIT logic
+- `app/database.py` — SQLite request tracking
+- `app/config.py` — Settings from `.env` (prefix: `JIT_`)
+
+## Templates
+- Use Bootstrap 5 via CDN, Bootstrap Icons
+- Base template: `app/templates/base.html`
+- No inline styles — use `app/static/style.css`
+
+## Do NOT
+- Hardcode credentials or JumpServer URLs
+- Skip `finally: await client.close()` on JumpServer client usage
+- Add comments that just narrate what code does

@@ -1,0 +1,45 @@
+---
+description: Python coding conventions and configuration
+globs: **/*.py
+alwaysApply: false
+---
+
+# Python Conventions
+
+## Naming
+- Variables: `snake_case`
+- Functions: `snake_case`
+- Classes: `PascalCase`
+- Files: `snake_case`
+- Constants: `UPPER_SNAKE_CASE`
+
+## Configuration
+- Use `.env` files with `pydantic-settings`
+- All env vars prefixed with `JIT_`
+- Secrets managed via environment variables only
+
+## Logging
+- Use Python `logging` module
+- Levels: debug, info, warning, error
+- Format: `%(asctime)s [%(levelname)s] %(name)s: %(message)s`
+- Log meaningful events: request created, approved, denied, revoked, cleanup
+
+## Documentation
+- Use Google-style docstrings for modules and complex functions
+- Don't add docstrings to trivial/obvious functions
+- Type hints on all function signatures
+
+## Error Handling
+- Prefer try/except with specific exceptions
+- Log errors with context before re-raising
+- Use `raise HTTPException` in routes, `raise ValueError` in services
+
+## Dependencies
+- Use `pip` with `requirements.txt`
+- Use virtual environments (`python3 -m venv venv`)
+- Pin versions for production deployments
+
+## Architecture Principles
+- Single Responsibility — one concern per module
+- DRY — don't repeat yourself
+- Modular design — services, routes, and database are separate layers
