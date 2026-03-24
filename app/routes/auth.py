@@ -72,3 +72,36 @@ async def logout():
     clear_admin_session(resp)
     clear_requester_session(resp)
     return resp
+
+
+@router.post("/logout")
+async def logout_api():
+    resp = RedirectResponse(url="/auth/login", status_code=303)
+    clear_admin_session(resp)
+    clear_requester_session(resp)
+    return resp
+
+
+@router.get("/me")
+async def me(request: Request):
+    admin_user = get_current_admin(request)
+    if admin_user:
+        return {
+            "username": admin_user,
+            "role": "admin",
+            "is_authenticated": True,
+        }
+
+    requester = get_current_requester(request)
+    if requester:
+        return {
+            "username": requester.get("username", ""),
+            "role": "requester",
+            "is_authenticated": True,
+        }
+
+    return {
+        "username": "",
+        "role": "requester",
+        "is_authenticated": False,
+    }

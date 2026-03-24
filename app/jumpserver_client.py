@@ -87,9 +87,57 @@ class JumpServerClient:
         return data.get("results", data) if isinstance(data, dict) else data
 
     async def get_asset_accounts(self, asset_id: str) -> list[dict]:
-        resp = self._get("/api/v1/accounts/accounts/", params={"asset": asset_id, "limit": 100})
-        data = resp.json()
-        return data.get("results", data) if isinstance(data, dict) else data
+        candidates = [
+            ("/api/v1/accounts/accounts/", {"asset": asset_id, "limit": 100}),
+            ("/api/v1/accounts/accounts/", {"assets": asset_id, "limit": 100}),
+            ("/api/v1/accounts/accounts/", {"asset_id": asset_id, "limit": 100}),
+            (f"/api/v1/assets/assets/{asset_id}/accounts/", {"limit": 100}),
+            (f"/api/v2/assets/assets/{asset_id}/accounts/", {"limit": 100}),
+        ]
+
+        for path, params in candidates:
+            try:
+                resp = self._get(path, params=params)
+                data = resp.json()
+                accounts = data.get("results", data) if isinstance(data, dict) else data
+                if isinstance(accounts, list) and accounts:
+                    return accounts
+            except Exception:
+                continue
+
+        # Fallback: some JumpServer versions ignore/rename account filter params.
+        # Fetch a wider list and filter client-side by asset identifier.
+        try:
+            resp = self._get("/api/v1/accounts/accounts/", params={"limit": 500})
+            data = resp.json()
+            accounts = data.get("results", data) if isinstance(data, dict) else data
+            if not isinstance(accounts, list):
+                return []
+
+            filtered = []
+            for account in accounts:
+                if not isinstance(account, dict):
+                    continue
+                account_asset = account.get("asset")
+                account_asset_id = account.get("asset_id")
+
+                if account_asset_id == asset_id:
+                    filtered.append(account)
+                    continue
+
+                if isinstance(account_asset, str) and account_asset == asset_id:
+                    filtered.append(account)
+                    continue
+
+                if isinstance(account_asset, dict) and account_asset.get("id") == asset_id:
+                    filtered.append(account)
+                    continue
+
+            return filtered
+        except Exception:
+            pass
+
+        return []
 
     # ── Permissions (JIT core) ─────────────────────────────
 

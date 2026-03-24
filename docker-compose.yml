@@ -2,15 +2,23 @@ services:
   jit-tool:
     build: .
     container_name: jumpserver-jit-tool
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     env_file:
       - .env
     volumes:
-      - jit_data:/app/data
+      - ./data:/app/data
     environment:
       - JIT_DATABASE_URL=sqlite:///./data/jit_access.db
     restart: unless-stopped
 
-volumes:
-  jit_data:
+  jit-ui:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: jumpserver-jit-ui
+    depends_on:
+      - jit-tool
+    ports:
+      - "8080:80"
+    restart: unless-stopped

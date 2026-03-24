@@ -32,6 +32,8 @@ htmlcov/
 *.sqlite3
 *.log
 logs/
+data/*
+!data/.gitkeep
 
 # Environment and secrets
 .env
@@ -46,6 +48,10 @@ Jumpserver pricvate key
 .vscode/
 *.swp
 *.swo
+
+# Frontend artifacts
+frontend/node_modules/
+frontend/dist/
 
 # OS files
 .DS_Store

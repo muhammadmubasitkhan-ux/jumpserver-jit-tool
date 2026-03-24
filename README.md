@@ -71,6 +71,25 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 Open http://localhost:8000/auth/login to sign in.
 
+## Frontend UI (React)
+
+The full Lovable-generated UI is integrated under `frontend/`.
+
+Run it in a separate terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend URL: http://localhost:8080
+
+Notes:
+- Vite proxy is configured so `/auth`, `/request`, `/approvals`, and `/dashboard`
+  are forwarded to `http://localhost:8000`
+- Keep backend running on port `8000` while using the React UI
+
 ## Docker
 
 ### Run with Docker Compose
@@ -80,11 +99,17 @@ copy .env.example .env
 docker compose up --build -d
 ```
 
-App URL: http://localhost:8000/auth/login
+Frontend UI URL: http://localhost:8080
 
 Notes:
-- SQLite data persists in Docker volume `jit_data`
+- SQLite data persists in host path `./data` (file: `./data/jit_access.db`)
 - Container forces `JIT_DATABASE_URL=sqlite:///./data/jit_access.db`
+- Frontend container proxies `/auth`, `/request`, `/approvals`, `/dashboard` to backend
+- Backend service is internal-only in Docker (not exposed to host by default)
+
+Important:
+- Do not run `docker compose down -v` if you want to keep existing data.
+- Rebuild/restart is safe: `docker compose up --build -d`
 
 ### Stop
 
@@ -181,6 +206,7 @@ jumpserver-jit-tool/
 ├── .dockerignore
 ├── Dockerfile
 ├── docker-compose.yml
+├── frontend/
 ├── requirements.txt
 └── README.md
 ```
